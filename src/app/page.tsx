@@ -1,95 +1,79 @@
-import Image from 'next/image'
-import styles from './page.module.css'
+'use client'
+import * as C from './page.styles';
+import { useState, useEffect, FormEvent } from 'react';
+import * as Photos from '../services/Photos';
+import { Photo } from '@/types/Photo';
+import PhotoItem from '@/components/PhotoItem';
 
 export default function Home() {
+  const [loading, setLoading] = useState(false);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    const getPhotos = async () => {
+      setLoading(true);
+      setPhotos(await Photos.getAll());
+      setLoading(false);
+    }
+
+    getPhotos();
+  }, []);
+
+  const handleFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const formData= new FormData(e.currentTarget);
+    const file = formData.get('image') as File;
+
+    if (file && file.size > 0) {
+      setUploading(true);
+      let result = await Photos.insert(file);
+      setUploading(false);
+
+      if (result instanceof Error) {
+        alert(`${result.name} - ${result.message}`);
+      } else {
+        let newPhotoList = [...photos];
+        newPhotoList.push(result);
+        setPhotos(newPhotoList);
+      }
+    }
+  }
+  
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <C.Container>
+      <C.Area>
+        <C.Header>Galeria de Fotos</C.Header>
 
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+        <C.UploadForm method='POST' onSubmit={handleFormSubmit}>
+          <input type='file' name='image' />
+          <input type='submit' value='Enviar' />
+          {uploading && 'Enviando...'}
+        </C.UploadForm>
 
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
+        {loading &&
+          <C.ScreenWarning>
+            <div className='emoji'>🤚</div>
+            <div>Carregando...</div>
+          </C.ScreenWarning>
+        }
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
+        {!loading && photos.length > 0 &&
+          <C.PhotoList>
+            {photos.map((item, index) => (
+              <PhotoItem key={index} url={item.url} name={item.name} />
+            ))}
+          </C.PhotoList>
+        }
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+        {!loading && photos.length === 0 &&
+          <C.ScreenWarning>
+            <div className='emoji'>😌</div>
+            <div>Não há fotos cadastradas.</div>
+          </C.ScreenWarning>
+        }
+      </C.Area>
+    </C.Container>
   )
 }
